@@ -48,8 +48,10 @@ async def on_voice_state_update(member, before, after):
         text_channel = await bot.fetch_channel(TEST_CHANNEL)
         message = f'Iyi geceler, {member_name}' if not is_night() else f'Iyi gunler, {member_name}'
         await text_channel.send(message)
+    elif before.channel is after.channel:
+        await send_voice_message(after.channel, f'{member_name} deminden shimdiye geldi')
     else:
-        await send_voice_message(after.channel, f'Bu hareket neydi {member_name}')
+        await send_voice_message(after.channel, f'{member_name} nerden geldin, nereye gidiyon')
 
 @bot.command()
 async def status(ctx):
