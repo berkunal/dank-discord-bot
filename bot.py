@@ -35,13 +35,17 @@ async def on_voice_state_update(member, before, after):
     if member.name.lower() == 'hasanberk':
         return
 
-    text_channel = bot.get_channel(TEST_CHANNEL)
     member_name = NAMES[member.name.lower()]
-    
+
     if before.channel is None and after.channel is not None:
-        await send_voice_message(after.channel, f'OO {member_name} hos geldiniz')
-    
+        if member_name == 'maglor bey':
+            await send_voice_message(after.channel, f'Selam berkcim')
+        elif member_name == 'emir bey':
+            await send_voice_message(after.channel, f'{member_name} geldi sakin olun.')
+        else:
+            await send_voice_message(after.channel, f'Beyler dağılın, Onat abiniz geldi.')
     elif before.channel is not None and after.channel is None:
+        text_channel = await bot.fetch_channel(TEST_CHANNEL)
         message = f'Iyi geceler, {member_name}' if not is_night() else f'Iyi gunler, {member_name}'
         await text_channel.send(message)
     else:
