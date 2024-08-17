@@ -22,8 +22,21 @@ TEST_CHANNEL=your-test-channel-id
 
 Replace `your-discord-token` with your Discord token and `your-test-channel-id` with the ID of the channel you want to test the bot in.
 
+### Run on local machine
+
 ```bash
 python bot.py
+```
+
+### Run on a Docker container
+
+```bash
+# build the image
+docker build -t dank-bot .
+
+# run the container (pick one)
+docker run -d dank-bot # run in background
+docker run -it dank-bot # run in foreground
 ```
 
 ## License
