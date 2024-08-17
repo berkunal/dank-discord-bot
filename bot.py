@@ -15,6 +15,7 @@ logger.name = 'bot'
 
 TOKEN = os.getenv('DISCORD_TOKEN')
 TEST_CHANNEL = os.getenv('TEST_CHANNEL')
+OWNER_ID = os.getenv('OWNER_ID')
 
 NAMES = {
     'animalbender': 'emir bey',
@@ -29,6 +30,9 @@ intents.message_content = True
 intents.voice_states = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+async def is_owner(ctx):
+    return ctx.author.id == OWNER_ID
 
 @bot.event
 async def on_ready():
@@ -57,11 +61,33 @@ async def on_voice_state_update(member, before, after):
     else:
         await send_voice_message(after.channel, f'{member_name} nerden geldin, nereye gidiyon')
 
-@bot.command()
+@bot.command(help='Displays the current status of the bot.')
 async def status(ctx):
-    await ctx.send('Raspberry Pi is running smoothly!')
+    await ctx.send('Hasanberk is cooking!')
+    
+@bot.command(help='Displays the current latency of the bot.')
+async def ping(ctx):
+    await ctx.send(f'Pong! {round(bot.latency * 1000)}ms')
 
-@bot.command()
+@bot.command(name='shutdown-bot', help='Shuts down the bot. Only the owner can use this command.')
+@commands.check(is_owner)
+async def shutdown_bot(ctx):
+    await ctx.send('Shutting down Hasaberk...')
+    await bot.close()
+
+@bot.command(help='Shuts down the machine. Only the owner can use this command.')
+@commands.check(is_owner)
+async def shutdown(ctx):
+    await ctx.send('Shutting down machine...')
+    os.system('sudo shutdown -h now')
+
+@bot.command(help='Reboots the machine. Only the owner can use this command.')
+@commands.check(is_owner)
+async def reboot(ctx):
+    await ctx.send('Rebooting machine...')
+    os.system('sudo reboot')
+
+@bot.command(help='Text to speech. Usage: !tts "<text>"') 
 async def tts(ctx, text: str):
     if ctx.author.voice is None:
         await ctx.send('You are not connected to a voice channel.')
