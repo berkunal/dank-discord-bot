@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime
 import pytz
 import logging
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,11 +17,12 @@ logger.name = 'bot'
 TOKEN = os.getenv('DISCORD_TOKEN')
 TEST_CHANNEL = os.getenv('TEST_CHANNEL')
 OWNER_ID = os.getenv('OWNER_ID')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 
 NAMES = {
-    'animalbender': 'emir bey',
-    'oto_nat': 'onat bey',
-    'maglor_carnesir': 'maglor bey'
+    'animalbender': 'emir',
+    'oto_nat': 'onat',
+    'maglor_carnesir': 'berk'
 }
 istanbul_tz = pytz.timezone('Europe/Istanbul')
 
@@ -30,6 +32,11 @@ intents.message_content = True
 intents.voice_states = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+# Initialize the generative AI model
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel(model_name='gemini-1.5-flash',
+                              system_instruction='You are a flirty female character. Please respond without using any emojis. You speak only Turkish.')
 
 async def is_owner(ctx):
     return ctx.author.id == OWNER_ID
@@ -46,18 +53,14 @@ async def on_voice_state_update(member, before, after):
     member_name = NAMES[member.name.lower()]
 
     if before.channel is None and after.channel is not None:
-        if member_name == 'maglor bey':
-            await send_voice_message(after.channel, f'Selam berkcim')
-        elif member_name == 'emir bey':
-            await send_voice_message(after.channel, f'{member_name} geldi sakin olun.')
-        else:
-            await send_voice_message(after.channel, f'Beyler dağılın, Onat abiniz geldi.')
+        await generate_ai_response_and_send(after.channel, f'{member_name} geldi ve karsinda duruyor')
     elif before.channel is not None and after.channel is None:
         text_channel = await bot.fetch_channel(TEST_CHANNEL)
-        message = f'Iyi geceler, {member_name}' if is_night() else f'Iyi gunler, {member_name}'
-        await text_channel.send(message)
+        response = await generate_ai_response(f'{member_name} ortamdan ayrildi. onunla uzun uzun konustun bugun. onunla yedinci bulusmanizdi. ona gule gule mesaji yaz.')
+        if response.text is not None:
+            await text_channel.send(response.text)
     elif before.channel is after.channel:
-        await send_voice_message(after.channel, f'{member_name} deminden shimdiye geldi')
+        await generate_ai_response_and_send(after.channel, f'{member_name} ekran paylasiyor')
     else:
         await send_voice_message(after.channel, f'{member_name} nerden geldin, nereye gidiyon')
 
@@ -96,6 +99,21 @@ async def tts(ctx, text: str):
     voice_channel = ctx.author.voice.channel
 
     await send_voice_message(voice_channel, text)
+
+@bot.command(help='Generates text using the Gemini model. Usage: !gemini "<text>"')
+async def gemini(ctx, text: str):
+    if ctx.author.voice is None:
+        await ctx.send('You are not connected to a voice channel.')
+        return
+
+    response = await generate_ai_response(text)
+
+    if response.text is None:
+        await ctx.send(f'Sorry, I could not generate text')
+        return
+
+    voice_channel = ctx.author.voice.channel
+    await send_voice_message(voice_channel, response.text)
     
 async def send_voice_message(voice_channel, text: str):
     logger.info('Joining voice channel...')
@@ -112,8 +130,19 @@ async def send_voice_message(voice_channel, text: str):
     await vc.disconnect()
     logger.info('Disconnected from voice channel.')
 
-def is_night():
-    now = datetime.now(tz=istanbul_tz)
-    return now.hour >= 21 and now.hour < 6
+async def generate_ai_response(text: str):
+    return model.generate_content(text, safety_settings=[
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}])
+
+async def generate_ai_response_and_send(voice_channel, text: str):
+    response = await generate_ai_response(text)
+
+    if response.text is None:
+        return
+
+    await send_voice_message(voice_channel, response.text)
 
 bot.run(TOKEN)
